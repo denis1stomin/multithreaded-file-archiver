@@ -52,10 +52,10 @@ namespace GzipArchiver
 
         static void ShowHelpAndExit(int code = 1)
         {
-            Console.Write("Simple multithreaded file archiver.");
-            Console.Write("  GzipTest <compress/decompress> <source path> <destination path pattern>");
-            Console.Write("  Example:");
-            Console.Write("  GzipTest compress my-big-file.txt file-archive");
+            Console.WriteLine("Simple multithreaded file archiver.");
+            Console.WriteLine("  GzipTest <compress/decompress> <source path> <destination path pattern>");
+            Console.WriteLine("  Example:");
+            Console.WriteLine("  GzipTest compress my-big-file.txt file-archive");
 
             Environment.Exit(code);
         }
