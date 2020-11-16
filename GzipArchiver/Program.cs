@@ -15,11 +15,35 @@ namespace GzipArchiver
                 Console.WriteLine($"  action type = {param.Action}");
                 Console.WriteLine($"  source path = {param.SourcePath}");
                 Console.WriteLine($"  dest path   = {param.DestinationPath}");
+
+                using (var archiver = new GzipArchiver(param.SourcePath, param.DestinationPath))
+                {
+                    if (param.Action == CmdArgs.ActionType.Compress)
+                    {
+                        Console.WriteLine("Starting to compress data...");
+                        archiver.Compress();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Starting to decompress data...");
+                        archiver.Decompress();
+                    }
+                }
+
+                Console.WriteLine("Finished");
+
             }
             catch (CmdArgsException ex)
             {
                 Console.WriteLine(ex.Message);
                 ShowHelpAndExit();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Operation failed:");
+                Console.WriteLine(ex.Message);
+
+                Environment.Exit(1);
             }
         }
 
@@ -38,7 +62,7 @@ namespace GzipArchiver
                 throw new CmdArgsException($"Cannot find source file path '{parsedArgs.SourcePath}'.");
 
             if (File.Exists(parsedArgs.DestinationPath))
-                throw new CmdArgsException($"Looks like the destination file '{parsedArgs.DestinationPath}' already exists. Only commercial version of the product can rewrite existing files.");
+                throw new CmdArgsException($"Looks like the destination file '{parsedArgs.DestinationPath}' already exists. Only commercial version of the product can rewrite existing files :)");
 
             var strAction = args[0];
             var parsed = Enum.TryParse(strAction, true, out CmdArgs.ActionType action);
@@ -50,14 +74,14 @@ namespace GzipArchiver
             return parsedArgs;
         }
 
-        static void ShowHelpAndExit(int code = 1)
+        static void ShowHelpAndExit()
         {
             Console.WriteLine("Simple multithreaded file archiver.");
             Console.WriteLine("  GzipTest <compress/decompress> <source path> <destination path pattern>");
             Console.WriteLine("  Example:");
             Console.WriteLine("  GzipTest compress my-big-file.txt file-archive");
 
-            Environment.Exit(code);
+            Environment.Exit(1);
         }
     }
 }
