@@ -70,7 +70,7 @@ namespace GzipArchiver
 
                 }
 
-                var portion = GetNextPortionFromCache(parsedIndex);
+                MemoryStream portion = null; //GetNextPortionFromCache(parsedIndex);
                 if (portion == null)
                 {
                     var portionFilePath = portionArr[1];
@@ -96,8 +96,8 @@ namespace GzipArchiver
 
         private string GetPortionFilePathFromCache(int index)
         {
-            if (_readCache.Remove(index, out var value))
-                return value;
+            //if (_readCache.Remove(index, out var value))
+            //    return value;
 
             return null;
         }
