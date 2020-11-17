@@ -22,5 +22,6 @@ namespace GzipArchiver
         public ActionType Action { get; set; }
         public string SourcePath { get; set; }
         public string DestinationPath { get; set; }
+        public int PortionSizeBytes { get; set; } = 1024 * 1024;
     }
 }

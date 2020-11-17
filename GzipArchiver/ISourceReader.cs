@@ -2,11 +2,11 @@ using System.IO;
 
 namespace GzipArchiver
 {
-    interface ISourceReader
+    public interface ISourceReader
     {
         string FilePath { get; }
         int PortionSizeBytes { get; }
 
-        MemoryStream ReadNextPortion();
+        Stream ReadNextPortion();
     }
 }

@@ -2,8 +2,8 @@ using System.IO;
 
 namespace GzipArchiver
 {
-    interface IResultWriter
+    public interface IResultWriter
     {
-        void WritePortion(int index, MemoryStream portion);
+        void WritePortion(Stream portion);
     }
 }

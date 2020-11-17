@@ -17,7 +17,7 @@ namespace GzipArchiver
             _outputStream = outputStream ?? throw new ArgumentNullException(nameof(outputStream));
         }
 
-        public void WritePortion(int index, MemoryStream portion)
+        public void WritePortion(Stream portion)
         {
             portion.CopyTo(_outputStream);
         }

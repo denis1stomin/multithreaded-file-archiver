@@ -19,7 +19,7 @@ namespace GzipArchiver
             _sourceStream = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         }
 
-        public MemoryStream ReadNextPortion()
+        public Stream ReadNextPortion()
         {
             var portion = ReadExactNumberOfBytes();
             

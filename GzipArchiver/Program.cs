@@ -7,6 +7,8 @@ namespace GzipArchiver
     {
         static void Main(string[] args)
         {
+            CompressionPipeline pipeline = null;
+
             try
             {
                 var param = ParseArgs(args);
@@ -16,19 +18,29 @@ namespace GzipArchiver
                 Console.WriteLine($"  source path = {param.SourcePath}");
                 Console.WriteLine($"  dest path   = {param.DestinationPath}");
 
-                using (var archiver = new GzipArchiver(param.SourcePath, param.DestinationPath))
+                if (param.Action == CmdArgs.ActionType.Compress)
                 {
-                    if (param.Action == CmdArgs.ActionType.Compress)
-                    {
-                        Console.WriteLine("Starting to compress data...");
-                        archiver.Compress();
-                    }
-                    else
-                    {
-                        Console.WriteLine("Starting to decompress data...");
-                        archiver.Decompress();
-                    }
+                    Console.WriteLine("Preparing compression pipeline...");
+                    
+                    pipeline = new CompressionPipeline(
+                        new UncompressedFileReader(param.SourcePath, param.PortionSizeBytes),
+                        null, // todo compression worker
+                        null // todo archive writer
+                    );
                 }
+                else
+                {
+                    Console.WriteLine("Starting to decompress data...");
+                    
+                    pipeline = new CompressionPipeline(
+                        null, // todo archive reader
+                        null, // todo decompression worker
+                        new AsIsResultWriter(param.DestinationPath)
+                    );
+                }
+
+                Console.WriteLine("Starting the work...");
+                pipeline.DoWork();
 
                 Console.WriteLine("Finished");
 
@@ -44,6 +56,10 @@ namespace GzipArchiver
                 Console.WriteLine(ex.Message);
 
                 Environment.Exit(1);
+            }
+            finally
+            {
+                pipeline?.Dispose();
             }
         }
 
