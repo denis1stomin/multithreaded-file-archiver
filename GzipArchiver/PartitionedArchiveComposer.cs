@@ -116,6 +116,7 @@ namespace GzipArchiver
             {
                 var portion = new MemoryStream();
                 portionStream.CopyTo(portion);
+                portion.Position = 0;
 
                 return portion;
             }

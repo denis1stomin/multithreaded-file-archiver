@@ -12,7 +12,7 @@ namespace GzipArchiver.Test
             using (var file = File.Create(TestArchivePath))
             {
                 if (data != null)
-                    new MemoryStream(data).CopyTo(file);
+                    file.Write(data, 0, data.Length);
             }
         }
 

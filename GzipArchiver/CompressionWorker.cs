@@ -11,6 +11,7 @@ namespace GzipArchiver
             using (var gzipStream = new GZipStream(resultStream, CompressionMode.Decompress))
                 portion.CopyTo(gzipStream);
             
+            resultStream.Position = 0;
             return resultStream;
         }
     }

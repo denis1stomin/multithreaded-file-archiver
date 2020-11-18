@@ -52,7 +52,7 @@ namespace GzipArchiver.Test
 
             using (var reader = new UncompressedFileReader(TC.TestArchivePath, portionSize))
             {
-                var portionBytes = reader.ReadNextPortion().ToArray();
+                var portionBytes = (reader.ReadNextPortion() as MemoryStream).ToArray();
                 CollectionAssert.AreEqual(bytes, portionBytes);
                 Assert.AreEqual(fileSize, portionBytes.Length);
 
@@ -73,22 +73,22 @@ namespace GzipArchiver.Test
 
             using (var reader = new UncompressedFileReader(TC.TestArchivePath, portionSize))
             {
-                var portionBytes = reader.ReadNextPortion().ToArray();
+                var portionBytes = (reader.ReadNextPortion() as MemoryStream).ToArray();
                 CollectionAssert.AreEqual(
                     bytes.Take(portionSize).ToArray(), portionBytes);
                 Assert.AreEqual(portionSize, portionBytes.Length);
 
-                portionBytes = reader.ReadNextPortion().ToArray();
+                portionBytes = (reader.ReadNextPortion() as MemoryStream).ToArray();
                 CollectionAssert.AreEqual(
                     bytes.Skip(portionSize).Take(portionSize).ToArray(), portionBytes);
                 Assert.AreEqual(portionSize, portionBytes.Length);
 
-                portionBytes = reader.ReadNextPortion().ToArray();
+                portionBytes = (reader.ReadNextPortion() as MemoryStream).ToArray();
                 CollectionAssert.AreEqual(
                     bytes.Skip(portionSize * 2).Take(portionSize).ToArray(), portionBytes);
                 Assert.AreEqual(portionSize, portionBytes.Length);
 
-                portionBytes = reader.ReadNextPortion().ToArray();
+                portionBytes = (reader.ReadNextPortion() as MemoryStream).ToArray();
                 CollectionAssert.AreEqual(
                     bytes.Skip(portionSize * 3).ToArray(), portionBytes);
                 Assert.AreEqual(fileSize - portionSize * 3, portionBytes.Length);
