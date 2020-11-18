@@ -24,7 +24,7 @@ namespace GzipArchiver
                     
                     pipeline = new CompressionPipeline(
                         new UncompressedFileReader(param.SourcePath, param.PortionSizeBytes),
-                        null, // todo compression worker
+                        new CompressionWorker(),
                         null // todo archive writer
                     );
                 }
@@ -34,7 +34,7 @@ namespace GzipArchiver
                     
                     pipeline = new CompressionPipeline(
                         null, // todo archive reader
-                        null, // todo decompression worker
+                        new DecompressionWorker(),
                         new AsIsResultWriter(param.DestinationPath)
                     );
                 }
