@@ -51,18 +51,22 @@ namespace GzipArchiver
 
             for (int i = 0; i < WorkersNumber; ++i)
             {
-                ThreadStart ts = new ThreadStart(WorkerFunc);
+                var ts = new ParameterizedThreadStart(WorkerFunc);
 
                 var t = new Thread(ts);
-                t.Start();
+                var workFinishedEvent = new ManualResetEvent(false);
+
+                t.Start(workFinishedEvent);
 
                 _workers.Add(t);
-                _workFinishedEvents.Add(new ManualResetEvent(false));
+                _workFinishedEvents.Add(workFinishedEvent);
             }
         }
 
-        private void WorkerFunc()
+        private void WorkerFunc(object param)
         {
+            var workFinishedEvent = param as ManualResetEvent;
+
             while (true)
             {
                 var haveTicket = _inboundQueue.TryDequeue(out var ticket);
@@ -87,24 +91,12 @@ namespace GzipArchiver
                 }
             }
 
-            MarkThreadFinished();
-        }
-
-        private void MarkThreadFinished()
-        {
-            // TODO : it is better to merge workers collection and its events collection
-
-            var idx = _workers.FindIndex(
-                el => el.ManagedThreadId == Thread.CurrentThread.ManagedThreadId);
-            if (idx == -1)
-                throw new Exception("Some bad logic here");
-
-            _workFinishedEvents[idx].Set();
+            workFinishedEvent.Set();
         }
 
         private void StartOutboundQueueHandler()
         {
-            ThreadStart ts = new ThreadStart(WorkerFunc);
+            ThreadStart ts = new ThreadStart(OutboundQueueHandlerFunc);
 
             _outboundQueueHandler = new Thread(ts);
             _outboundQueueHandler.Start();

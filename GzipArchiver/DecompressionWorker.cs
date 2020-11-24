@@ -8,7 +8,7 @@ namespace GzipArchiver
         public Stream HandlePortion(Stream portion)
         {
             var resultStream = new MemoryStream();
-            using (var gzipStream = new GZipStream(portion, CompressionMode.Decompress))
+            using (var gzipStream = new GZipStream(portion, CompressionMode.Decompress, true))
                 gzipStream.CopyTo(resultStream);
 
             resultStream.Position = 0;
