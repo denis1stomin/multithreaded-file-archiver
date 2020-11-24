@@ -74,6 +74,8 @@ namespace GzipArchiver
                         ticket.Index,
                         handledPortion
                     ));
+
+                    ticket.Data.Dispose();
                 }
                 else
                 {
@@ -94,6 +96,9 @@ namespace GzipArchiver
 
             var idx = _workers.FindIndex(
                 el => el.ManagedThreadId == Thread.CurrentThread.ManagedThreadId);
+            if (idx == -1)
+                throw new Exception("Some bad logic here");
+
             _workFinishedEvents[idx].Set();
         }
 
@@ -112,9 +117,10 @@ namespace GzipArchiver
                 var haveTicket = _outboundQueue.TryDequeue(out var ticket);
                 if (haveTicket)
                 {
-                    // TODO : sort tickets by indices here before write them
+                    #warning TODO : sort tickets by indices here before write them
 
                     _writer.WritePortion(ticket.Data);
+                    ticket.Data.Dispose();
                 }
                 else
                 {
@@ -129,24 +135,22 @@ namespace GzipArchiver
 
         private void FillInboundQueue()
         {
-            // TODO : handle OutOfMemoryException and exponential retry?
+            // TODO : handle OutOfMemoryException via exponential retry?
 
             long portionIndex = 0;
             while (true)
             {
-                using (var portionStream = _reader.ReadNextPortion())
+                var portionStream = _reader.ReadNextPortion();
+                if (portionStream != null)
                 {
-                    if (portionStream != null)
-                    {
-                        _inboundQueue.Enqueue(new PortionTicket(
-                            portionIndex,
-                            portionStream
-                        ));
+                    _inboundQueue.Enqueue(new PortionTicket(
+                        portionIndex,
+                        portionStream
+                    ));
 
-                        portionIndex ++;
-                    }
-                    else break;
+                    portionIndex ++;
                 }
+                else break;
             }
         }
 
