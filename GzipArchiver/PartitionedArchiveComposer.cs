@@ -49,8 +49,6 @@ namespace GzipArchiver
 
             do
             {
-
-
                 var portionInfo = _mainReader.ReadLine();
                 // end of file
                 if (portionInfo == null)
@@ -92,14 +90,6 @@ namespace GzipArchiver
         {
             _mainReader?.Dispose();
             _mainWriter?.Dispose();
-        }
-
-        private string GetPortionFilePathFromCache(int index)
-        {
-            //if (_readCache.Remove(index, out var value))
-            //    return value;
-
-            return null;
         }
 
         private MemoryStream AddPortionToCache(int index)

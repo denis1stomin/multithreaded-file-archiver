@@ -34,7 +34,7 @@ namespace GzipArchiver
             //  This means we don't have race condition here from inbound queue perspective.
             SignalNoMoreInboundData();
 
-            WaitWorkIsFinished();
+            WaitPipelineIsFinished();
         }
 
         public void Dispose()
@@ -66,13 +66,19 @@ namespace GzipArchiver
 
         private void WorkerFunc(object param)
         {
-            var workFinishedEvent = param as ManualResetEvent;
+            // validate input parameters before the work
+            var workFinishedEvent = param as ManualResetEvent ?? throw new ArgumentNullException(nameof(param));
+
+            var threadId = Thread.CurrentThread.ManagedThreadId;
+            _logger.Log($"Worker '{threadId}' is started.");
 
             while (true)
             {
                 var haveTicket = _inboundQueue.TryDequeue(out var ticket);
                 if (haveTicket)
                 {
+                    _logger.Log($"Worker '{threadId}' got a next portion with index '{ticket.Index}'.");
+
                     var handledPortion = _worker.HandlePortion(ticket.Data);
 
                     _outboundQueue.Enqueue(new PortionTicket(
@@ -85,14 +91,20 @@ namespace GzipArchiver
                 else
                 {
                     if (_noMoreInboundData)
+                    {
+                        _logger.Log($"Worker '{threadId}' is going to break the loop due to no more input data.");
                         break;
+                    }
 
                     // TODO : makes sense to think about some smarter pause
                     Thread.Sleep(1);
                 }
             }
 
+            _logger.Log($"Worker '{threadId}' will signal via event '{workFinishedEvent.SafeWaitHandle.GetHashCode()}' it is finished...");
             workFinishedEvent.Set();
+
+            _logger.Log($"Worker '{threadId}' is finished.");
         }
 
         private void StartOutboundQueueHandler()
@@ -105,11 +117,15 @@ namespace GzipArchiver
 
         private void OutboundQueueHandlerFunc()
         {
+            _logger.Log($"Output queue handler thread '{Thread.CurrentThread.ManagedThreadId}' is started.");
+
             while (true)
             {
                 var haveTicket = _outboundQueue.TryDequeue(out var ticket);
                 if (haveTicket)
                 {
+                    _logger.Log($"Output handler got a next portion with index '{ticket.Index}'.");
+
                     #warning TODO : sort tickets by indices here before write them
 
                     _writer.WritePortion(ticket.Data);
@@ -117,13 +133,17 @@ namespace GzipArchiver
                 }
                 else
                 {
-                    // TODO : check that all Workers are finished their work
-                    //          Wait all manual reset events with a small timeout here.
-
                     // TODO : makes sense to think about some smarter pause
-                    Thread.Sleep(1);
+                    var finished = WaitWorkersAreFinished(TimeSpan.FromMilliseconds(1));
+                    if (finished && _noMoreInboundData)
+                    {
+                        _logger.Log($"Going to stop output handler...");
+                        break;
+                    }
                 }
             }
+
+            _logger.Log($"Output queue handler thread is finished.");
         }
 
         private void FillInboundQueue()
@@ -169,24 +189,35 @@ namespace GzipArchiver
 
         private void SignalNoMoreInboundData()
         {
+            _logger.Log("Will signal that there is no more input data...");
             _noMoreInboundData = true;
         }
 
-        private void WaitWorkIsFinished()
+        private bool WaitWorkersAreFinished(TimeSpan timeout)
         {
-            _logger.Log("Start waiting whole work is finished...");
-
-            var timeout = TimeSpan.FromMinutes(WorkTimeoutMinutes);
+            _logger.Log($"Will wait for {_workFinishedEvents.Count} workers to finish with timeout {timeout}...");
             // can use just Join() in loop here but I'd like to summarize timeout for all threads.
             var finished = WaitHandle.WaitAll(_workFinishedEvents.ToArray(), timeout);
+
+            return finished;
+        }
+
+        private void WaitPipelineIsFinished()
+        {
+            _logger.Log("Start waiting for whole pipeline is finished...");
+
+            var timeout = TimeSpan.FromMinutes(WorkTimeoutMinutes);
+
+            var finished = WaitWorkersAreFinished(timeout);
             if (!finished)
                 throw new TimeoutException("hm operation takes too long today");
             
+            _logger.Log($"Will wait for output data handler thread is finished with timeout {timeout}...");
             finished = _outboundQueueHandler.Join(timeout);
             if (!finished)
                 throw new TimeoutException("hm operation takes too long today");
 
-            _logger.Log("Work is finished.");
+            _logger.Log("Whole pipeline is finished.");
         }
 
         ISourceReader _reader;
