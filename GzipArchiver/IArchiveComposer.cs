@@ -1,8 +1,9 @@
+using System;
 using System.IO;
 
 namespace GzipArchiver
 {
-    public interface IArchiveComposer
+    public interface IArchiveComposer: IDisposable
     {
         public enum OpenMode
         {

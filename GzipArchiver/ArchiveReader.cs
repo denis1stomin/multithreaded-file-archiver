@@ -3,11 +3,12 @@ using System.IO;
 
 namespace GzipArchiver
 {
-    public class ArchiveReader : ISourceReader, IDisposable
+    public class ArchiveReader : ISourceReader
     {
         public ArchiveReader(string archivePath)
             : this (new PartitionedArchiveComposer(archivePath, IArchiveComposer.OpenMode.Read))
         {
+            _doDispose = true;
         }
 
         public ArchiveReader(IArchiveComposer composer)
@@ -17,14 +18,16 @@ namespace GzipArchiver
 
         public Stream ReadNextPortion()
         {
-            throw new NotImplementedException();
+            return _composer.ReadNextPortion();
         }
 
         public void Dispose()
         {
-            // TODO
+            if (_doDispose)
+                _composer.Dispose();
         }
 
-        IArchiveComposer _composer;
+        private IArchiveComposer _composer;
+        private bool _doDispose = false;
     }
 }
