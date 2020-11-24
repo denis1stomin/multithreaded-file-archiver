@@ -25,7 +25,8 @@ namespace GzipArchiver
                     pipeline = new CompressionPipeline(
                         new UncompressedFileReader(param.SourcePath, param.PortionSizeBytes),
                         new CompressionWorker(),
-                        new ArchiveWriter(param.DestinationPath)
+                        new ArchiveWriter(param.DestinationPath),
+                        new Logger()
                     );
                 }
                 else
@@ -35,7 +36,8 @@ namespace GzipArchiver
                     pipeline = new CompressionPipeline(
                         new ArchiveReader(param.SourcePath),
                         new DecompressionWorker(),
-                        new AsIsResultWriter(param.DestinationPath)
+                        new AsIsResultWriter(param.DestinationPath),
+                        new Logger()
                     );
                 }
 

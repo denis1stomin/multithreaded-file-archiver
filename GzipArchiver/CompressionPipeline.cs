@@ -15,11 +15,12 @@ namespace GzipArchiver
         public int WorkTimeoutMinutes { get; } = 30;
 
         public CompressionPipeline(
-            ISourceReader reader, IWorker worker, IResultWriter writer)
+            ISourceReader reader, IWorker worker, IResultWriter writer, ILogger logger)
         {
             _reader = reader ?? throw new ArgumentNullException(nameof(reader));
             _worker = worker ?? throw new ArgumentNullException(nameof(worker));
             _writer = writer ?? throw new ArgumentNullException(nameof(writer));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public void DoWork()
@@ -129,6 +130,8 @@ namespace GzipArchiver
         {
             // TODO : handle OutOfMemoryException via exponential retry?
 
+            _logger.Log("Start filling inbound queue...");
+
             long portionIndex = 0;
             while (true)
             {
@@ -144,12 +147,15 @@ namespace GzipArchiver
                 }
                 else break;
             }
+
+            _logger.Log($"Added {portionIndex} portion[s] into inbound queue.");
         }
 
         private void WaitInboundQueueIsEmpty()
         {
-            // super simple way to wait for the queue is empty
+            _logger.Log("Waiting for inbound queue is empty...");
 
+            // super simple way to wait for the queue is empty
             var startedAt = DateTime.UtcNow;
             while (_inboundQueue.Count > 0)
             {
@@ -157,6 +163,8 @@ namespace GzipArchiver
                 if (DateTime.UtcNow.Subtract(startedAt) > TimeSpan.FromMinutes(WorkTimeoutMinutes))
                     throw new TimeoutException("hm operation takes too long today");
             }
+
+            _logger.Log("Inbound queue is empty.");
         }
 
         private void SignalNoMoreInboundData()
@@ -166,6 +174,8 @@ namespace GzipArchiver
 
         private void WaitWorkIsFinished()
         {
+            _logger.Log("Start waiting whole work is finished...");
+
             var timeout = TimeSpan.FromMinutes(WorkTimeoutMinutes);
             // can use just Join() in loop here but I'd like to summarize timeout for all threads.
             var finished = WaitHandle.WaitAll(_workFinishedEvents.ToArray(), timeout);
@@ -175,6 +185,8 @@ namespace GzipArchiver
             finished = _outboundQueueHandler.Join(timeout);
             if (!finished)
                 throw new TimeoutException("hm operation takes too long today");
+
+            _logger.Log("Work is finished.");
         }
 
         ISourceReader _reader;
@@ -208,5 +220,7 @@ namespace GzipArchiver
         private List<ManualResetEvent> _workFinishedEvents;
 
         private Thread _outboundQueueHandler;
+
+        private ILogger _logger;
     }
 }
