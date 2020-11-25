@@ -27,7 +27,7 @@ fi
 
 ###########################################
 # main scenarios with average file
-cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 1000 | head -n 2000 >$SOURCE_PATH
+cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10000 | head -n 100000 >$SOURCE_PATH
 
 rm $ARCHIVE_PATH* --force
 OUTPUT=$(dotnet run -p $PROJ_PATH compress $SOURCE_PATH $ARCHIVE_PATH)

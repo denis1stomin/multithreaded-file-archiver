@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
@@ -7,7 +6,7 @@ using System.Collections.Concurrent;
 
 namespace GzipArchiver
 {
-    public class CompressionPipeline : IDisposable
+    public partial class CompressionPipeline : IDisposable
     {
         public string SourcePath { get; }
         public string DestinationPath { get; }
@@ -125,32 +124,32 @@ namespace GzipArchiver
             _outboundQueueHandler.Start();
         }
 
+        private long FinishPortionHandling(PortionTicket ticket)
+        {
+            var lastHandledIndex = ticket.Index;
+            _writer.WritePortion(ticket.Data);
+            ticket.Dispose();
+
+            return lastHandledIndex;
+        }
+
         private long TryHandleTicketsFromCache(long prevPortionIndex, SortedList<long, PortionTicket> ticketsCache)
         {
-            if (ticketsCache.Any())
+            while (ticketsCache.Any())
             {
-                _logger.Log($"Output handler has items in cache.");
-
                 var nextCachedItem = ticketsCache.First();
                 var nextCachedTicket = nextCachedItem.Value;
 
+                var strCache = String.Join(",", ticketsCache.Select(x => x.Key));
+                _logger.Log($"OH - current cache with '{ticketsCache.Count}' elements: {strCache}");
+
                 if (nextCachedTicket.Index == prevPortionIndex + 1)
                 {
-                    _logger.Log($"Output handler will handle all items from cache...");
-
-                    // We have cached tickets and they are in correct order.
-                    // Let's handle all of them
-
-                    foreach (var pair in ticketsCache)
-                    {
-                        _writer.WritePortion(pair.Value.Data);
-                        prevPortionIndex ++;
-
-                        pair.Value.Data.Dispose();
-                    }
-                    
-                    ticketsCache.Clear();
+                    ticketsCache.Remove(nextCachedItem.Key);
+                    prevPortionIndex = FinishPortionHandling(nextCachedTicket);
+                    _logger.Log($"OH has handled cached ticket '{nextCachedTicket.Index}', prev handled index is '{prevPortionIndex}'.");
                 }
+                else break;
             }
 
             return prevPortionIndex;
@@ -158,27 +157,27 @@ namespace GzipArchiver
 
         private void OutboundQueueHandlerFunc()
         {
-            _logger.Log($"Output queue handler thread '{Thread.CurrentThread.ManagedThreadId}' is started.");
+            // TODO : try-catch - report errors and terminate pipeline if needed
+
+            _logger.Log($"OH handler thread '{Thread.CurrentThread.ManagedThreadId}' is started.");
 
             var ticketsCache = new SortedList<long, PortionTicket>();
             long prevPortionIndex = -1;
 
             while (true)
             {
-                _logger.Log($"Output handler - trying handle items from cache, prev handled index is '{prevPortionIndex}'...");
+                _logger.Log($"OH - trying handle items from cache, prev handled index is '{prevPortionIndex}'...");
                 prevPortionIndex = TryHandleTicketsFromCache(prevPortionIndex, ticketsCache);
 
                 var haveTicket = _outboundQueue.TryDequeue(out var ticket);
                 if (haveTicket)
                 {
-                    _logger.Log($"Output handler got a next portion with index '{ticket.Index}', prev handled index is '{prevPortionIndex}'.");
+                    _logger.Log($"OH got a next portion with index '{ticket.Index}', prev handled index is '{prevPortionIndex}'.");
                     
                     if (ticket.Index == prevPortionIndex + 1)
                     {
-                        _logger.Log($"Output handler is handling a ticket '{ticket.Index}'...");
-
-                        _writer.WritePortion(ticket.Data);
-                        ticket.Data.Dispose();
+                        prevPortionIndex = FinishPortionHandling(ticket);
+                        _logger.Log($"OH has handled a ticket '{ticket.Index}', prev handled index is '{prevPortionIndex}'.");
                     }
                     else
                     {
@@ -189,15 +188,15 @@ namespace GzipArchiver
                 {
                     // TODO : makes sense to think about some smarter pause
                     var finished = WaitWorkersAreFinished(TimeSpan.FromMilliseconds(1));
-                    if (_noMoreInboundData && finished && _outboundQueue.IsEmpty)
+                    if (_noMoreInboundData && finished && !_outboundQueue.Any() && !ticketsCache.Any())
                     {
-                        _logger.Log($"Going to stop output handler...");
+                        _logger.Log($"OH - Going to stop handler...");
                         break;
                     }
                 }
             }
 
-            _logger.Log($"Output queue handler thread is finished.");
+            _logger.Log("OH thread is finished.");
         }
 
         private void FillInboundQueue()
@@ -305,25 +304,6 @@ namespace GzipArchiver
         ISourceReader _reader;
         IWorker _worker;
         IResultWriter _writer;
-
-        private class PortionTicket : IDisposable
-        {
-            public long Index { get; }
-            public Stream Data { get; }
-
-            public PortionTicket(long index, Stream data)
-            {
-                Index = (index >= 0) ?
-                    index : throw new ArgumentOutOfRangeException(nameof(index));
-                
-                Data = data ?? throw new ArgumentNullException(nameof(data));
-            }
-
-            public void Dispose()
-            {
-                Data?.Dispose();
-            }
-        }
 
         private bool _noMoreInboundData = false;
         private ConcurrentQueue<PortionTicket> _inboundQueue = new ConcurrentQueue<PortionTicket>();
