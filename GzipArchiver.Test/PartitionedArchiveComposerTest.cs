@@ -99,12 +99,5 @@ namespace GzipArchiver.Test
                 Assert.AreEqual(null, portion5);
             }
         }
-
-        // [TestMethod]
-        // public void ReadFewDisorderedPortions()
-        // {
-        //     RandomizeLinesOrder(TestArchivePath);            
-        //     ReadFewPortions();
-        // }
     }
 }
