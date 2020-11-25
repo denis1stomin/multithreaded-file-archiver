@@ -1,6 +1,11 @@
 # Multithreaded file archiver
 Simple multithreaded file archiver implemented using dotnet core framework.  
-Most commands below are for Linux system but it is just because I have Ubuntu on my home machine. The commands can be easily tuned or even used as-is on Windows.
+Most commands below are for Linux system but it is just because I have Ubuntu on my home machine. The commands can be easily tuned for Windows or even used as-is on Windows.
+
+## Requirements
+- Input files can be bigger than RAM size
+- Don't use async/await
+- Don't use ThreadPool, BackgroundWorker, TPL
 
 ## Main things to understand and reproduce this code
 To run the app  

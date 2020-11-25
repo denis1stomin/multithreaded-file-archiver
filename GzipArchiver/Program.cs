@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 
 namespace GzipArchiver
 {
@@ -14,9 +15,10 @@ namespace GzipArchiver
                 var param = ParseArgs(args);
 
                 Console.WriteLine("Input parameters:");
-                Console.WriteLine($"  action type = {param.Action}");
-                Console.WriteLine($"  source path = {param.SourcePath}");
-                Console.WriteLine($"  dest path   = {param.DestinationPath}");
+                Console.WriteLine($"  action type         = {param.Action}");
+                Console.WriteLine($"  source path         = {param.SourcePath}");
+                Console.WriteLine($"  dest path           = {param.DestinationPath}");
+                Console.WriteLine($"  portion size bytes  = {param.PortionSizeBytes}");
 
                 if (param.Action == CmdArgs.ActionType.Compress)
                 {
@@ -43,6 +45,12 @@ namespace GzipArchiver
 
                 Console.WriteLine("Starting the work...");
                 pipeline.DoWork();
+
+                var errors = pipeline.GetWorkErrors();
+                if (errors.Any())
+                {
+                    // TODO : some logic to evaluate a final decision is result acceptable or not.
+                }
 
                 Console.WriteLine("Finished");
 

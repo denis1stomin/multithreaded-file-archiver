@@ -12,7 +12,6 @@ namespace GzipArchiver
         public string SourcePath { get; }
         public string DestinationPath { get; }
         public int WorkersNumber { get; } = Environment.ProcessorCount * 2;
-        public long MaxMemoryUsage { get; } = 1000 * 1024 * 1024;   // not strict limitation
         public int WorkTimeoutMinutes { get; } = 30;
 
         public CompressionPipeline(
@@ -36,6 +35,12 @@ namespace GzipArchiver
             SignalNoMoreInboundData();
 
             WaitPipelineIsFinished();
+        }
+
+        /// Returns a list of errors happened during work process.
+        public IEnumerable<Exception> GetWorkErrors()
+        {
+            return _internalErrorsReport;
         }
 
         public void Dispose()
@@ -133,7 +138,7 @@ namespace GzipArchiver
                 {
                     _logger.Log($"Output handler will handle all items from cache...");
 
-                    // We have cached tickets and they are in a correct order.
+                    // We have cached tickets and they are in correct order.
                     // Let's handle all of them
 
                     foreach (var pair in ticketsCache)
@@ -197,27 +202,38 @@ namespace GzipArchiver
 
         private void FillInboundQueue()
         {
-            // TODO : handle OutOfMemoryException via exponential retry?
-
-            _logger.Log("Start filling inbound queue...");
-
-            long portionIndex = 0;
-            while (true)
+            try
             {
-                var portionStream = _reader.ReadNextPortion();
-                if (portionStream != null)
+                _logger.Log("Start filling inbound queue...");
+
+                long portionIndex = 0;
+                while (true)
                 {
-                    _inboundQueue.Enqueue(new PortionTicket(
-                        portionIndex,
-                        portionStream
-                    ));
+                    var portionStream = _reader.ReadNextPortion();
+                    if (portionStream != null)
+                    {
+                        _inboundQueue.Enqueue(new PortionTicket(
+                            portionIndex,
+                            portionStream
+                        ));
 
-                    portionIndex ++;
+                        portionIndex ++;
+                    }
+                    else break;
                 }
-                else break;
-            }
 
-            _logger.Log($"Overall added {portionIndex} portion[s] into inbound queue.");
+                _logger.Log($"Overall added {portionIndex} portion[s] into inbound queue.");
+            }
+            catch (Exception ex)
+            {
+                // All this error-handling-stuff should be a separate class.
+                //  I just added it here as an idea of error handling.
+
+                ReportError(ex);
+
+                if (IsCriticalError(ex))
+                    TerminateWorkProcess();
+            }
         }
 
         private void WaitInboundQueueIsEmpty()
@@ -269,6 +285,23 @@ namespace GzipArchiver
             _logger.Log("Whole pipeline is finished.");
         }
 
+        private bool IsCriticalError(Exception ex)
+        {
+            return false;
+        }
+
+        /// Stops whole internal work on a critical error for example.
+        private void TerminateWorkProcess()
+        {
+            throw new NotImplementedException();
+        }
+
+        private void ReportError(Exception ex)
+        {
+            _logger.Log($"Reporting an error {ex.Message}");
+            _internalErrorsReport.Add(ex);
+        }
+
         ISourceReader _reader;
         IWorker _worker;
         IResultWriter _writer;
@@ -298,8 +331,8 @@ namespace GzipArchiver
 
         private List<Thread> _workers;
         private List<ManualResetEvent> _workFinishedEvents;
-
         private Thread _outboundQueueHandler;
+        private ConcurrentBag<Exception> _internalErrorsReport = new ConcurrentBag<Exception>();
 
         private ILogger _logger;
     }
