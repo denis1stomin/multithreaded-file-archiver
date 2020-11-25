@@ -6,7 +6,8 @@ namespace GzipArchiver
     {
         public void Log(string msg)
         {
-            Console.WriteLine($"{DateTime.UtcNow} : {msg}");
+            var timestamp = DateTime.UtcNow.ToString("o");
+            Console.WriteLine($"{timestamp} : {msg}");
         }
     }
 }

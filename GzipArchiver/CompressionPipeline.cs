@@ -40,12 +40,16 @@ namespace GzipArchiver
         public void Dispose()
         {
             // TODO: reader/writer/threads?
+
+            _writer.Dispose();
         }
 
         private void StartWorkerThreads()
         {
             if (_workers != null)
                 throw new Exception("One instance per operation please!");
+
+            _logger.Log($"Starting {WorkersNumber} worker thread[s]...");
 
             _workers = new List<Thread>(WorkersNumber);
             _workFinishedEvents = new List<ManualResetEvent>(WorkersNumber);
@@ -135,7 +139,7 @@ namespace GzipArchiver
                 {
                     // TODO : makes sense to think about some smarter pause
                     var finished = WaitWorkersAreFinished(TimeSpan.FromMilliseconds(1));
-                    if (finished && _noMoreInboundData)
+                    if (_noMoreInboundData && finished && _outboundQueue.IsEmpty)
                     {
                         _logger.Log($"Going to stop output handler...");
                         break;
@@ -168,7 +172,7 @@ namespace GzipArchiver
                 else break;
             }
 
-            _logger.Log($"Added {portionIndex} portion[s] into inbound queue.");
+            _logger.Log($"Overall added {portionIndex} portion[s] into inbound queue.");
         }
 
         private void WaitInboundQueueIsEmpty()
@@ -195,7 +199,6 @@ namespace GzipArchiver
 
         private bool WaitWorkersAreFinished(TimeSpan timeout)
         {
-            _logger.Log($"Will wait for {_workFinishedEvents.Count} workers to finish with timeout {timeout}...");
             // can use just Join() in loop here but I'd like to summarize timeout for all threads.
             var finished = WaitHandle.WaitAll(_workFinishedEvents.ToArray(), timeout);
 
@@ -208,6 +211,7 @@ namespace GzipArchiver
 
             var timeout = TimeSpan.FromMinutes(WorkTimeoutMinutes);
 
+            _logger.Log($"Will wait for {_workFinishedEvents.Count} workers to finish with timeout {timeout}...");
             var finished = WaitWorkersAreFinished(timeout);
             if (!finished)
                 throw new TimeoutException("hm operation takes too long today");
