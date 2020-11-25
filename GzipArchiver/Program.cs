@@ -28,7 +28,7 @@ namespace GzipArchiver
                         new UncompressedFileReader(param.SourcePath, param.PortionSizeBytes),
                         new CompressionWorker(),
                         new ArchiveWriter(param.DestinationPath),
-                        new Logger()
+                        new Logger(0)
                     );
                 }
                 else
@@ -39,7 +39,7 @@ namespace GzipArchiver
                         new ArchiveReader(param.SourcePath),
                         new DecompressionWorker(),
                         new AsIsResultWriter(param.DestinationPath),
-                        new Logger()
+                        new Logger(0)
                     );
                 }
 
