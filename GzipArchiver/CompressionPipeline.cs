@@ -12,6 +12,7 @@ namespace GzipArchiver
         public string DestinationPath { get; }
         public int WorkersNumber { get; } = Environment.ProcessorCount * 2;
         public int WorkTimeoutMinutes { get; } = 30;
+        public long InboundQueueMaxSize { get; } = 1000;
 
         public CompressionPipeline(
             ISourceReader reader, IWorker worker, IResultWriter writer, ILogger logger)
@@ -199,6 +200,21 @@ namespace GzipArchiver
             _logger.Log("OH thread is finished.");
         }
 
+        private void AvoidInboundQueueOverflowing()
+        {
+            var startedAt = DateTime.UtcNow;
+            var relaxMs = 10;
+            while (_inboundQueue.Count > InboundQueueMaxSize)
+            {
+                // kinda exponential back-off relax :)
+                relaxMs = (relaxMs * 2) % 5000;
+                Thread.Sleep(relaxMs);
+
+                if (DateTime.UtcNow.Subtract(startedAt) > TimeSpan.FromMinutes(WorkTimeoutMinutes))
+                    throw new TimeoutException("hm operation takes too long today");
+            }
+        }
+
         private void FillInboundQueue()
         {
             try
@@ -208,6 +224,8 @@ namespace GzipArchiver
                 long portionIndex = 0;
                 while (true)
                 {
+                    AvoidInboundQueueOverflowing();
+
                     var portionStream = _reader.ReadNextPortion();
                     if (portionStream != null)
                     {

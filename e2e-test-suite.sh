@@ -11,7 +11,8 @@ EXTRACTED_PATH=./decompressed.txt
 ###########################################
 # without any arguments
 OUTPUT=$(dotnet run -p $PROJ_PATH)
-if (("$?" -ne "")); then
+EXIT_CODE=$(echo $?)
+if (("1" -ne "$EXIT_CODE")); then
     echo Failed
 fi
 
@@ -28,6 +29,7 @@ fi
 ###########################################
 # main scenarios with average file
 cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10000 | head -n 100000 >$SOURCE_PATH
+echo Generated test file $SOURCE_PATH with size $(stat -c%s "$SOURCE_PATH")
 
 rm $ARCHIVE_PATH* --force
 OUTPUT=$(dotnet run -p $PROJ_PATH compress $SOURCE_PATH $ARCHIVE_PATH)
