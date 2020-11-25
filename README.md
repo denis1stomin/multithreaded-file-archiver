@@ -1,14 +1,23 @@
 # Multithreaded file archiver
-Simple multithreaded file archiver implemented using dotnet framework.
+Simple multithreaded file archiver implemented using dotnet core framework.  
+Most commands below are for Linux system but it is just because I have Ubuntu on my home machine. The commands can be easily tuned or even used as-is on Windows.
 
-## Main things to understand or reproduce this code
+## Main things to understand and reproduce this code
 To run the app  
 `cd GzipArchiver`  
 `dotnet run`  
 
-To run tests  
+To publish single executable file on Linux  
+`dotnet publish -c release --self-contained --runtime linux-x64`  
+or on Windows  
+`dotnet publish -c release --self-contained --runtime win-x64`  
+
+To run unit tests  
 `cd GzipArchiver.Test`  
 `dotnet test`  
+
+To run E2E tests  
+`sh e2e-test-suite.sh`  
 
 To create project structure run  
 `dotnet new console --name GzipArchiver`  
