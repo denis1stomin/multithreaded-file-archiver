@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Text;
-using System.Collections.Generic;
 
 namespace GzipArchiver
 {
@@ -63,11 +62,9 @@ namespace GzipArchiver
                 if (!parsed)
                     throw new FormatException("corrupted archive");
 
-                if (parsedIndex != _portionIndex)
-                {
-
-                }
-
+                // TODO : does it make sense to check order here?
+                //if (parsedIndex != _portionIndex)
+                
                 MemoryStream portion = null; //GetNextPortionFromCache(parsedIndex);
                 if (portion == null)
                 {
@@ -92,11 +89,6 @@ namespace GzipArchiver
             _mainWriter?.Dispose();
         }
 
-        private MemoryStream AddPortionToCache(int index)
-        {
-            return _readCache.GetValueOrDefault(index);
-        }
-
         private MemoryStream GetNextPortionFromFile(string filePath)
         {
             // TODO : try-catch FileNotFound => CorruptedArchive etc
@@ -118,7 +110,6 @@ namespace GzipArchiver
 
             var stream = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             _mainReader = new StreamReader(stream, _fileEncoding);
-            _readCache = new Dictionary<int, MemoryStream>();
         }
 
         private void OpenWrite()
@@ -128,10 +119,8 @@ namespace GzipArchiver
         }
 
         private StreamWriter _mainWriter;
-        private int _portionIndex = -1;
-
         private StreamReader _mainReader;
-        private Dictionary<int, MemoryStream> _readCache;
+        private long _portionIndex = -1;
         
         private Encoding _fileEncoding = Encoding.UTF8;
     }

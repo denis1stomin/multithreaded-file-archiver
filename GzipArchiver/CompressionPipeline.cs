@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
@@ -119,21 +120,65 @@ namespace GzipArchiver
             _outboundQueueHandler.Start();
         }
 
+        private long TryHandleTicketsFromCache(long prevPortionIndex, SortedList<long, PortionTicket> ticketsCache)
+        {
+            if (ticketsCache.Any())
+            {
+                _logger.Log($"Output handler has items in cache.");
+
+                var nextCachedItem = ticketsCache.First();
+                var nextCachedTicket = nextCachedItem.Value;
+
+                if (nextCachedTicket.Index == prevPortionIndex + 1)
+                {
+                    _logger.Log($"Output handler will handle all items from cache...");
+
+                    // We have cached tickets and they are in a correct order.
+                    // Let's handle all of them
+
+                    foreach (var pair in ticketsCache)
+                    {
+                        _writer.WritePortion(pair.Value.Data);
+                        prevPortionIndex ++;
+
+                        pair.Value.Data.Dispose();
+                    }
+                    
+                    ticketsCache.Clear();
+                }
+            }
+
+            return prevPortionIndex;
+        }
+
         private void OutboundQueueHandlerFunc()
         {
             _logger.Log($"Output queue handler thread '{Thread.CurrentThread.ManagedThreadId}' is started.");
 
+            var ticketsCache = new SortedList<long, PortionTicket>();
+            long prevPortionIndex = -1;
+
             while (true)
             {
+                _logger.Log($"Output handler - trying handle items from cache, prev handled index is '{prevPortionIndex}'...");
+                prevPortionIndex = TryHandleTicketsFromCache(prevPortionIndex, ticketsCache);
+
                 var haveTicket = _outboundQueue.TryDequeue(out var ticket);
                 if (haveTicket)
                 {
-                    _logger.Log($"Output handler got a next portion with index '{ticket.Index}'.");
+                    _logger.Log($"Output handler got a next portion with index '{ticket.Index}', prev handled index is '{prevPortionIndex}'.");
+                    
+                    if (ticket.Index == prevPortionIndex + 1)
+                    {
+                        _logger.Log($"Output handler is handling a ticket '{ticket.Index}'...");
 
-                    #warning TODO : sort tickets by indices here before write them
-
-                    _writer.WritePortion(ticket.Data);
-                    ticket.Data.Dispose();
+                        _writer.WritePortion(ticket.Data);
+                        ticket.Data.Dispose();
+                    }
+                    else
+                    {
+                        ticketsCache.Add(ticket.Index, ticket);
+                    }
                 }
                 else
                 {
