@@ -3,7 +3,7 @@ using System.IO;
 
 namespace GzipArchiver
 {
-    public class AsIsResultWriter : IResultWriter, IDisposable
+    public class AsIsResultWriter : IResultWriter
     {
         public AsIsResultWriter(string outputPath)
             : this(InitStream(outputPath))
@@ -16,7 +16,7 @@ namespace GzipArchiver
         {
             _outputStream = outputStream ?? throw new ArgumentNullException(nameof(outputStream));
         }
-
+        
         public void WritePortion(Stream portion)
         {
             portion.CopyTo(_outputStream);

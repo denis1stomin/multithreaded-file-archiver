@@ -10,7 +10,7 @@ namespace GzipArchiver
     {
         public string SourcePath { get; }
         public string DestinationPath { get; }
-        public int WorkersNumber { get; } = Environment.ProcessorCount * 2;
+        public int WorkersNumber { get; } = Environment.ProcessorCount;
         public int WorkTimeoutMinutes { get; } = 30;
         public long InboundQueueMaxSize { get; } = 1000;
 
@@ -28,12 +28,7 @@ namespace GzipArchiver
             StartWorkerThreads();
             StartOutboundQueueHandler();
 
-            FillInboundQueue();
-            WaitInboundQueueIsEmpty();
-            // After we set it here there is no chance of new tickets in the inbound queue.
-            //  This means we don't have race condition here from inbound queue perspective.
-            SignalNoMoreInboundData();
-
+            StartFillingInboundQueue();
             WaitPipelineIsFinished();
         }
 
@@ -45,9 +40,12 @@ namespace GzipArchiver
 
         public void Dispose()
         {
-            // TODO: reader/writer/threads?
+            _reader?.Dispose();
+            _writer?.Dispose();
+            _inboundQueueUpdatedEvent?.Dispose();
 
-            _writer.Dispose();
+            foreach (var e in _workFinishedEvents)
+                e.Dispose();
         }
 
         private void StartWorkerThreads()
@@ -67,10 +65,10 @@ namespace GzipArchiver
                 var t = new Thread(ts);
                 var workFinishedEvent = new ManualResetEvent(false);
 
-                t.Start(workFinishedEvent);
-
                 _workers.Add(t);
                 _workFinishedEvents.Add(workFinishedEvent);
+
+                t.Start(workFinishedEvent);
             }
         }
 
@@ -106,8 +104,7 @@ namespace GzipArchiver
                         break;
                     }
 
-                    // TODO : makes sense to think about some smarter pause
-                    Thread.Sleep(1);
+                    _inboundQueueUpdatedEvent.WaitOne(100);
                 }
             }
 
@@ -206,7 +203,7 @@ namespace GzipArchiver
             var relaxMs = 10;
             while (_inboundQueue.Count > InboundQueueMaxSize)
             {
-                // kinda exponential back-off relax :)
+                // kinda exponential back-off relax
                 relaxMs = (relaxMs * 2) % 5000;
                 Thread.Sleep(relaxMs);
 
@@ -215,7 +212,7 @@ namespace GzipArchiver
             }
         }
 
-        private void FillInboundQueue()
+        private void StartFillingInboundQueue()
         {
             try
             {
@@ -235,8 +232,14 @@ namespace GzipArchiver
                         ));
 
                         portionIndex ++;
+
+                        SignalAboutNewTicket();
                     }
-                    else break;
+                    else
+                    {
+                        SignalNoMoreInboundData();
+                        break;
+                    };
                 }
 
                 _logger.Log($"Overall added {portionIndex} portion[s] into inbound queue.");
@@ -253,20 +256,9 @@ namespace GzipArchiver
             }
         }
 
-        private void WaitInboundQueueIsEmpty()
+        private void SignalAboutNewTicket()
         {
-            _logger.Log("Waiting for inbound queue is empty...");
-
-            // super simple way to wait for the queue is empty
-            var startedAt = DateTime.UtcNow;
-            while (_inboundQueue.Count > 0)
-            {
-                Thread.Sleep(100);
-                if (DateTime.UtcNow.Subtract(startedAt) > TimeSpan.FromMinutes(WorkTimeoutMinutes))
-                    throw new TimeoutException("hm operation takes too long today");
-            }
-
-            _logger.Log("Inbound queue is empty.");
+            _inboundQueueUpdatedEvent.Set();
         }
 
         private void SignalNoMoreInboundData()
@@ -307,7 +299,7 @@ namespace GzipArchiver
             return false;
         }
 
-        /// Stops whole internal work on a critical error for example.
+        /// Stops whole internal work on a critical error.
         private void TerminateWorkProcess()
         {
             throw new NotImplementedException();
@@ -324,6 +316,7 @@ namespace GzipArchiver
         IResultWriter _writer;
 
         private bool _noMoreInboundData = false;
+        private AutoResetEvent _inboundQueueUpdatedEvent = new AutoResetEvent(false);
         private ConcurrentQueue<PortionTicket> _inboundQueue = new ConcurrentQueue<PortionTicket>();
         private ConcurrentQueue<PortionTicket> _outboundQueue = new ConcurrentQueue<PortionTicket>();
 

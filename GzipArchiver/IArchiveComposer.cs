@@ -3,7 +3,7 @@ using System.IO;
 
 namespace GzipArchiver
 {
-    public interface IArchiveComposer: IDisposable
+    public interface IArchiveComposer : IDisposable
     {
         public enum OpenMode
         {

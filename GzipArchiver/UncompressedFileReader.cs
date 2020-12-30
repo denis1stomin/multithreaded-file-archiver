@@ -3,7 +3,7 @@ using System.IO;
 
 namespace GzipArchiver
 {
-    public class UncompressedFileReader : ISourceReader, IDisposable
+    public class UncompressedFileReader : ISourceReader
     {
         public string FilePath { get; }
         public int PortionSizeBytes { get; }

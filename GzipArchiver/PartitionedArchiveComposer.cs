@@ -4,7 +4,7 @@ using System.Text;
 
 namespace GzipArchiver
 {
-    public class PartitionedArchiveComposer : IArchiveComposer, IDisposable
+    public class PartitionedArchiveComposer : IArchiveComposer
     {
         public string FilePath { get; }
         public IArchiveComposer.OpenMode Mode { get; }
@@ -98,7 +98,7 @@ namespace GzipArchiver
             {
                 var portion = new MemoryStream();
                 portionStream.CopyTo(portion);
-                portion.Position = 0;
+                portion.Seek(0, SeekOrigin.Begin);
 
                 return portion;
             }
