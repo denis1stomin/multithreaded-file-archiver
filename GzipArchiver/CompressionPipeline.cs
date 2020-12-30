@@ -10,7 +10,7 @@ namespace GzipArchiver
     {
         public string SourcePath { get; }
         public string DestinationPath { get; }
-        public int WorkersNumber { get; } = Environment.ProcessorCount;
+        public int WorkersNumber { get; } = Environment.ProcessorCount * 2;
         public int WorkTimeoutMinutes { get; } = 30;
         public long InboundQueueMaxSize { get; } = 1000;
 
